@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 class particle_system:
     def __init__(self,grid):#grid:integer tuple
@@ -9,7 +10,7 @@ class particle_system:
         if start_pos is None:
             x_data = np.random.uniform(low=0, high=self.grid[0], size=n)
             y_data= np.random.uniform(low=0, high=self.grid[1], size=n)
-            start_pos=[(int(x_data[i]),int(y_data[i]))for i,x in enumerate(x_data)]
+            start_pos=[(x_data[i],y_data[i])for i,x in enumerate(x_data)]
             
         if intensity is None:
             intensity=[1 for i in range(n)]
@@ -48,8 +49,8 @@ def brownian_update(part,dt,D,drift=[0,0]):
     mean=[dt*d for d in drift]
     cov=np.identity(2)*dt*D*2#the 2 term appears because I think that's the 'true' variance formula in Brownian motion but D may as well just be any number, not the diffusion coeff
     dx, dy = np.random.multivariate_normal(mean, cov, 1).T
-    dx=int(dx[0])
-    dy=int(dy[0])#unpack the unnecessary array and make integers since we are on an integer grid
+    dx=dx[0]
+    dy=dy[0]
     if (dx>part.grid[0] or dy>part.grid[1]):
         print("The time step in brownian motion seems to be too large relative to grid size")#just to see if I'm doing anything stupid
     pos=part.pos
@@ -58,3 +59,14 @@ def brownian_update(part,dt,D,drift=[0,0]):
         return new_pos
     else:#need to figure out where and when it intersects the boundary. For now let's just resample
         return brownian_update(part,dt,D,drift)
+
+def thunderstorm_extract(directory,frame_id):
+    df=pd.read_csv(directory)
+    frame=df.loc[df['frame'] == frame_id]
+    data=frame[['x [nm]','y [nm]','intensity [photon]']]
+    pos=[]
+    intensity=[]
+    for row in data.iterrows():
+        pos.append((row[1][0],row[1][1]))
+        intensity.append(row[1][2])
+    return pos,intensity
