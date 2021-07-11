@@ -5,18 +5,17 @@ class particle_system:
     def __init__(self,grid):#grid:integer tuple
         self.grid=grid
         self.particles=[]
+        self.dim=len(self.grid)
         
     def insert_particles(self,n,update_pos,update_intensity,start_pos=None,intensity=None):
         if start_pos is None:
-            x_data = np.random.uniform(low=0, high=self.grid[0], size=n)
-            y_data= np.random.uniform(low=0, high=self.grid[1], size=n)
-            start_pos=[(x_data[i],y_data[i])for i,x in enumerate(x_data)]
-            
+            pos_data=[np.random.uniform(low=0, high=self.grid[i], size=n) for i in range(self.dim)]
+            start_pos=[[pos_data[j][i] for j in range(self.dim)]for i in range(n)]
         if intensity is None:
             intensity=[1 for i in range(n)]
             
         for i in range(n):
-            self.particles.append(particle(self.grid,start_pos[i],update_pos,intensity[i],update_intensity))
+            self.particles.append(particle(self.grid,self.dim,start_pos[i],update_pos,intensity[i],update_intensity))
     def evolve(self,dt):
         for p in self.particles:
             p.evolve(dt)
@@ -27,8 +26,9 @@ class particle_system:
 
 
 class particle:
-    def __init__(self,grid,start_pos,update_pos,intensity,update_intensity):
+    def __init__(self,grid,dim,start_pos,update_pos,intensity,update_intensity):
         self.grid=grid#dimensions of the space it's restricted to
+        self.dim=dim
         
         self.pos=start_pos#current position
         self.__class__.update_pos=update_pos
@@ -40,21 +40,20 @@ class particle:
         self.pos=self.update_pos(dt)
         self.intensity=self.update_intensity(dt)
 
+def inside_grid(pos,grid):#assume grid has leftmost bottom corner in 0, check if a given point is inisde of it
+    inside_dimensions=[pos[i]>=0 and pos[i]<=grid_dim for i,grid_dim in enumerate(grid)]
+    return all(inside_dimensions)
 
-def inside_grid(pos,grid):#assume grid has left bottom corner in (0,0), check if a given point is inisde of it
-    return pos[0]>=0 and pos[0]<=grid[0] and pos[1]>=0 and pos[1]<=grid[1]
-
-
-def brownian_update(part,dt,D,drift=[0,0]):
+def brownian_update(part,dt,D,drift=None):
+    if drift is None:
+        drift=[0]*part.dim
     mean=[dt*d for d in drift]
-    cov=np.identity(2)*dt*D*2#the 2 term appears because I think that's the 'true' variance formula in Brownian motion but D may as well just be any number, not the diffusion coeff
-    dx, dy = np.random.multivariate_normal(mean, cov, 1).T
-    dx=dx[0]
-    dy=dy[0]
-    if (dx>part.grid[0] or dy>part.grid[1]):
+    cov=np.identity(part.dim)*dt*D*2#the 2 term appears because I think that's the 'true' variance formula in Brownian motion but D may as well just be any number, not the diffusion coeff
+    dr = np.random.multivariate_normal(mean, cov, 1).T
+    if (any([np.abs(dr[i][0])>grid_dim/2 for i,grid_dim in enumerate(part.grid)])):#this is just bad code but we're unlikely to need more dimensions anytime soon
         print("The time step in brownian motion seems to be too large relative to grid size")#just to see if I'm doing anything stupid
     pos=part.pos
-    new_pos=tuple(map(sum, zip(pos, (dx,dy))))
+    new_pos=list(map(sum, zip(pos, [dr[i][0] for i,d in enumerate(dr)])))
     if inside_grid(new_pos,part.grid):
         return new_pos
     else:#need to figure out where and when it intersects the boundary. For now let's just resample
@@ -67,6 +66,6 @@ def thunderstorm_extract(directory,frame_id):
     pos=[]
     intensity=[]
     for row in data.iterrows():
-        pos.append((row[1][0],row[1][1]))
+        pos.append([row[1][0],row[1][1]])
         intensity.append(row[1][2])
     return pos,intensity
