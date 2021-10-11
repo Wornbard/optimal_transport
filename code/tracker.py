@@ -100,7 +100,7 @@ if(output_name==''):
     loc=filename.find('.csv')
     if(loc==-1):
         raise ValueError('The input file is not a "csv"! How did we even get this far?!')
-    output_name=filename[:loc-1]+'_tracked.csv'
+    output_name=filename[:loc]+'_tracked.csv'
 
 
 print('\n\n')
